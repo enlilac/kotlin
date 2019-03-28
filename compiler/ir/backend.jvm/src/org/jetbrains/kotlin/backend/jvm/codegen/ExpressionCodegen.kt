@@ -7,10 +7,8 @@ package org.jetbrains.kotlin.backend.jvm.codegen
 
 import org.jetbrains.kotlin.backend.common.descriptors.propertyIfAccessor
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
-import org.jetbrains.kotlin.backend.jvm.intrinsics.IrIntrinsicFunction
 import org.jetbrains.kotlin.backend.jvm.intrinsics.IrIntrinsicMethods
 import org.jetbrains.kotlin.backend.jvm.lower.CrIrType
-import org.jetbrains.kotlin.backend.jvm.lower.JvmBuiltinOptimizationLowering.Companion.isNegation
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.codegen.*
 import org.jetbrains.kotlin.codegen.AsmUtil.*
@@ -117,6 +115,8 @@ class ExpressionCodegen(
     private val intrinsics = IrIntrinsicMethods(classCodegen.context.irBuiltIns)
 
     val typeMapper = classCodegen.typeMapper
+
+    val context = classCodegen.context
 
     private val state = classCodegen.state
 
@@ -310,7 +310,7 @@ class ExpressionCodegen(
         return visitStatementContainer(expression, data).coerce(expression.type)
     }
 
-    override fun visitMemberAccess(expression: IrMemberAccessExpression, data: BlockInfo): StackValue {
+    override fun visitFunctionAccess(expression: IrFunctionAccessExpression, data: BlockInfo): StackValue {
         expression.markLineNumber(startOffset = true)
         return generateCall(expression, null, data)
     }
@@ -349,14 +349,12 @@ class ExpressionCodegen(
         return generateCall(expression, expression.superQualifier, data)
     }
 
-    private fun generateCall(expression: IrMemberAccessExpression, superQualifier: ClassDescriptor?, data: BlockInfo): StackValue {
+    private fun generateCall(expression: IrFunctionAccessExpression, superQualifier: ClassDescriptor?, data: BlockInfo): StackValue {
+        intrinsics.getIntrinsic(expression.descriptor.original as CallableMemberDescriptor)
+            ?.invoke(expression, this, data)?.let { return it }
         val isSuperCall = superQualifier != null
         val callable = resolveToCallable(expression, isSuperCall)
-        return if (callable is IrIntrinsicFunction) {
-            callable.invoke(mv, this, data)
-        } else {
-            generateCall(expression, callable, data, isSuperCall)
-        }
+        return generateCall(expression, callable, data, isSuperCall)
     }
 
     fun generateCall(expression: IrMemberAccessExpression, callable: Callable, data: BlockInfo, isSuperCall: Boolean = false): StackValue {
@@ -1091,15 +1089,6 @@ class ExpressionCodegen(
     }
 
     private fun resolveToCallable(irCall: IrMemberAccessExpression, isSuper: Boolean): Callable {
-        val intrinsic = intrinsics.getIntrinsic(irCall.descriptor.original as CallableMemberDescriptor)
-        if (intrinsic != null) {
-            return intrinsic.toCallable(
-                irCall,
-                typeMapper.mapSignatureSkipGeneric(irCall.descriptor as FunctionDescriptor),
-                classCodegen.context
-            )
-        }
-
         var descriptor = irCall.descriptor
         if (descriptor is TypeAliasConstructorDescriptor) {
             //TODO where is best to unwrap?
