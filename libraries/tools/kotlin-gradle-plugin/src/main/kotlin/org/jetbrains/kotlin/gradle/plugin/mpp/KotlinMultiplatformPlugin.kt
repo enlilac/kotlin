@@ -103,7 +103,7 @@ class KotlinMultiplatformPlugin(
                 .compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME)
 
         val primaryCompilationsBySourceSet by lazy { // don't evaluate eagerly: Android targets are not created at this point
-            val allCompilationsForSourceSets = compilationsBySourceSet(project)
+            val allCompilationsForSourceSets = CompilationSourceSetUtil.compilationsBySourceSets(project)
 
             allCompilationsForSourceSets.mapValues { (_, compilations) -> // choose one primary compilation
                 when (compilations.size) {
@@ -315,14 +315,3 @@ internal fun sourcesJarTask(
 
     return result
 }
-
-internal fun compilationsBySourceSet(project: Project): Map<KotlinSourceSet, Set<KotlinCompilation<*>>> =
-    HashMap<KotlinSourceSet, MutableSet<KotlinCompilation<*>>>().also { result ->
-        for (target in project.multiplatformExtension.targets) {
-            for (compilation in target.compilations) {
-                for (sourceSet in compilation.allKotlinSourceSets) {
-                    result.getOrPut(sourceSet) { mutableSetOf() }.add(compilation)
-                }
-            }
-        }
-    }
