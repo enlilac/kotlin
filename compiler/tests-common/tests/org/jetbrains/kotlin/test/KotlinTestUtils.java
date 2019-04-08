@@ -112,6 +112,22 @@ public class KotlinTestUtils {
 
     private static final List<File> filesToDelete = new ArrayList<>();
 
+
+    // It's important that this is not created per test, but rather per process.
+    public static final String IDEA_SYSTEM_PATH;
+
+    static {
+        String path = null;
+        try {
+            path = tmpDirForReusableLibrary("idea-system").getPath();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        IDEA_SYSTEM_PATH = path;
+    }
+
+
     /**
      * Syntax:
      *

@@ -31,6 +31,14 @@ import java.lang.reflect.Modifier;
  * Works differently for Gradle and JPS. Default is Gradle for now.
  */
 public class JUnit3RunnerWithInners extends Runner implements Filterable, Sortable {
+
+    static {
+        if (KotlinTestUtils.IDEA_SYSTEM_PATH != null) {
+            System.setProperty("idea.system.path", KotlinTestUtils.IDEA_SYSTEM_PATH);
+            System.setProperty("idea.config.path", KotlinTestUtils.IDEA_SYSTEM_PATH + "/config");
+        }
+    }
+
     private final Runner delegateRunner;
 
     public JUnit3RunnerWithInners(Class<?> klass) {
