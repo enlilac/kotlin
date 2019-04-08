@@ -27,7 +27,10 @@ import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.sources.DefaultLanguageSettingsBuilder
+import org.jetbrains.kotlin.gradle.plugin.sources.KotlinDependencyScope
+import org.jetbrains.kotlin.gradle.plugin.sources.sourceSetDependencyConfigurationByScope
 import org.jetbrains.kotlin.gradle.scripting.internal.ScriptingGradleSubplugin
+import org.jetbrains.kotlin.gradle.targets.metadata.isKotlinGranularMetadataEnabled
 import org.jetbrains.kotlin.gradle.utils.SingleWarningPerBuild
 import org.jetbrains.kotlin.gradle.utils.checkGradleCompatibility
 import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
@@ -205,13 +208,34 @@ class KotlinMultiplatformPlugin(
 
                     pom.withXml { xml ->
                         if (PropertiesProvider(project).keepMppDependenciesIntactInPoms != true)
-                            project.rewritePomMppDependenciesToActualTargetModules(xml, kotlinComponent)
+                            project.rewritePomMppDependenciesToActualTargetModules(xml, kotlinComponent) { id ->
+                                filterMetadataDependencies(this@createMavenPublications, id)
+                            }
                     }
                 }
 
                 (kotlinComponent as? KotlinTargetComponentWithPublication)?.publicationDelegate = componentPublication
                 publicationConfigureActions.all { it.execute(componentPublication) }
             }
+    }
+
+    /**
+     * The metadata targets need their POMs to only include the dependencies from the commonMain API configuration.
+     * The actual apiElements configurations of metadata targets now contain dependencies from all source sets, but, as the consumers who
+     * can't read Gradle module metadata won't resolve a dependency on an MPP to the granular metadata variant and won't then choose the
+     * right dependencies for each source set, we put only the dependencies of the legacy common variant into the POM, i.e. commonMain API.
+     */
+    private fun filterMetadataDependencies(target: AbstractKotlinTarget, groupNameVersion: Triple<String?, String, String?>): Boolean {
+        if (target !is KotlinMetadataTarget || !target.project.isKotlinGranularMetadataEnabled) {
+            return true
+        }
+
+        val (group, name, _) = groupNameVersion
+
+        val project = target.project
+        val metadataApiLegacyElements = project.configurations.getByName(METADATA_LEGACY_ELEMENTS_CONFIGURATION_NAME)
+
+        return metadataApiLegacyElements.allDependencies.any { it.group == group && it.name == name }
     }
 
     private fun configureSourceSets(project: Project) = with(project.multiplatformExtension) {

@@ -36,4 +36,4 @@ open class GenerateProjectStructureMetadata : DefaultTask() {
     }
 }
 
-internal const val MULTIPLATFORM_PROJECT_METADATA_FILE_NAME = "multiplatform-project-metadata.xml"
+internal const val MULTIPLATFORM_PROJECT_METADATA_FILE_NAME = "kotlin-project-structure-metadata.xml"

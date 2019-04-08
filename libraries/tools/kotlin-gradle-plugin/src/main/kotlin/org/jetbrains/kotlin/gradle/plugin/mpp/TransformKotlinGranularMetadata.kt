@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.sources.KotlinDependencyScope.API_SCOPE
 import org.jetbrains.kotlin.gradle.plugin.sources.KotlinDependencyScope.IMPLEMENTATION_SCOPE
 import org.jetbrains.kotlin.gradle.targets.metadata.ALL_COMPILE_METADATA_CONFIGURATION_NAME
-import org.jetbrains.kotlin.gradle.utils.isParentOf
 import java.io.File
 import javax.inject.Inject
 
@@ -36,12 +35,12 @@ open class TransformKotlinGranularMetadata
         )
 
     @get:Internal
-    internal val metadataDependencyTransformationResults: Iterable<MetadataDependencyResolution>
+    internal val metadataDependencyResolutions: Iterable<MetadataDependencyResolution>
         get() = transformation.metadataDependencyResolutions
 
     @get:Internal
-    internal val filesByDependency: Map<out MetadataDependencyResolution, FileCollection>
-        get() = metadataDependencyTransformationResults.filterIsInstance<MetadataDependencyResolution.ChooseVisibleSourceSets>()
+    internal val filesByResolution: Map<out MetadataDependencyResolution, FileCollection>
+        get() = metadataDependencyResolutions.filterIsInstance<MetadataDependencyResolution.ChooseVisibleSourceSets>()
             .associate { it to project.files(it.getMetadataFilesBySourceSet(outputsDir, doProcessFiles = false).values) }
 
     @TaskAction
@@ -51,23 +50,8 @@ open class TransformKotlinGranularMetadata
         }
         outputsDir.mkdirs()
 
-        // Access all replacement files to trigger metadata extraction.
-        metadataDependencyTransformationResults
+        metadataDependencyResolutions
             .filterIsInstance<MetadataDependencyResolution.ChooseVisibleSourceSets>()
-            .forEach { result ->
-                val resultFiles = result.getMetadataFilesBySourceSet(outputsDir, doProcessFiles = true)
-
-                if (result.projectDependency == null) {
-                    // Also assert that all files extracted from non-project dependencies are placed inside [outputsDir],
-                    // as otherwise Gradle won't correctly track their up-do-date state
-                    resultFiles.forEach { (_, files) ->
-                        files.forEach { file ->
-                            assert(outputsDir.isParentOf(file)) {
-                                "The metadata replacement file $file for dependency ${result.dependency} should be placed inside $outputsDir"
-                            }
-                        }
-                    }
-                }
-            }
+            .forEach { it.getMetadataFilesBySourceSet(outputsDir, doProcessFiles = true) }
     }
 }

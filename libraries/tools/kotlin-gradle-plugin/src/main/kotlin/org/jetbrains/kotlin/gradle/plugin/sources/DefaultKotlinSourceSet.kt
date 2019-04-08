@@ -158,7 +158,7 @@ class DefaultKotlinSourceSet(
             val (group, name) = groupAndName
             val projectPath = resolution.projectDependency?.dependencyProject?.path
             when (resolution) {
-                is MetadataDependencyResolution.UseOriginalDependency -> null
+                is MetadataDependencyResolution.KeepOriginalDependency -> null
 
                 is MetadataDependencyResolution.ExcludeAsUnrequested ->
                     MetadataDependencyTransformation(group, name, projectPath, null, emptySet(), emptyMap())

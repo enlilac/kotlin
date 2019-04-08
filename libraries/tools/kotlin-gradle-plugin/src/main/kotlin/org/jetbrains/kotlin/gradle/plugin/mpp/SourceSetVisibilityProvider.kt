@@ -74,10 +74,10 @@ internal class SourceSetVisibilityProvider(
 
         if (otherProject != null) {
             val publishedVariants = getPublishedPlatformCompilations(otherProject).keys
-            visiblePlatformVariantNames = visiblePlatformVariantNames
-                .map { configurationName ->
-                    publishedVariants.first { it.dependencyConfigurationName == configurationName }.name
-                }.toSet()
+
+            visiblePlatformVariantNames = visiblePlatformVariantNames.mapTo(mutableSetOf()) { configurationName ->
+                publishedVariants.first { it.dependencyConfigurationName == configurationName }.name
+            }
         }
 
         return dependencyProjectMetadata.sourceSetNamesByVariantName

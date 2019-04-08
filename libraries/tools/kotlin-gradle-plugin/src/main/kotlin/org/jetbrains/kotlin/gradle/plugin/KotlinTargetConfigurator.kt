@@ -320,12 +320,12 @@ abstract class KotlinTargetConfigurator<KotlinCompilationType : KotlinCompilatio
         }
     }
 
-    protected open fun createJarTask(target: KotlinOnlyTarget<KotlinCompilationType>): Jar {
+    /** The implementations are expected to create a [Jar] task under the name [KotlinTarget.artifactsTaskName] of the [target]. */
+    protected open fun createJarTasks(target: KotlinOnlyTarget<KotlinCompilationType>) {
         val result = target.project.tasks.create(target.artifactsTaskName, Jar::class.java)
         result.description = "Assembles a jar archive containing the main classes."
         result.group = BasePlugin.BUILD_GROUP
         result.from(target.compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME).output.allOutputs)
-        return result
     }
 
     override fun configureArchivesAndComponent(target: KotlinOnlyTarget<KotlinCompilationType>) {
@@ -333,7 +333,8 @@ abstract class KotlinTargetConfigurator<KotlinCompilationType : KotlinCompilatio
 
         val mainCompilation = target.compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME)
 
-        val jar = createJarTask(target)
+        createJarTasks(target)
+        val jar = project.tasks.getByName(target.artifactsTaskName) as Jar
 
         target.disambiguationClassifier?.let { jar.appendix = it.toLowerCase() }
 

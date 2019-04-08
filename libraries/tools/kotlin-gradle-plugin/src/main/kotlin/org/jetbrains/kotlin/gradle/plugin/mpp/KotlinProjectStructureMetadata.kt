@@ -86,10 +86,10 @@ internal fun KotlinProjectStructureMetadata.toXmlDocument(): Document {
 
 private val NodeList.elements: Iterable<Element> get() = (0 until length).map { this@elements.item(it) }.filterIsInstance<Element>()
 
-internal fun parseKotlinSourceSetMetadataFromXml(document: Document): KotlinProjectStructureMetadata {
+internal fun parseKotlinSourceSetMetadataFromXml(document: Document): KotlinProjectStructureMetadata? {
     val projectStructureNode = document.getElementsByTagName("projectStructure").elements.single()
 
-    val variantsNode = projectStructureNode.getElementsByTagName("variants").item(0)
+    val variantsNode = projectStructureNode.getElementsByTagName("variants").item(0) ?: return null
 
     val sourceSetsByVariant = mutableMapOf<String, Set<String>>()
 
@@ -103,7 +103,7 @@ internal fun parseKotlinSourceSetMetadataFromXml(document: Document): KotlinProj
     val sourceSetDependsOnRelation = mutableMapOf<String, Set<String>>()
     val sourceSetModuleDependencies = mutableMapOf<String, Set<Pair<String, String>>>()
 
-    val sourceSetsNode = projectStructureNode.getElementsByTagName("sourceSets").item(0)
+    val sourceSetsNode = projectStructureNode.getElementsByTagName("sourceSets").item(0) ?: return null
 
     sourceSetsNode.childNodes.elements.filter { it.tagName == "sourceSet" }.forEach { sourceSetNode ->
         val sourceSetName = sourceSetNode.getElementsByTagName("name").elements.single().textContent
