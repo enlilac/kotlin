@@ -11,6 +11,7 @@ import com.intellij.lang.PsiBuilderFactory
 import com.intellij.openapi.project.Project
 import com.intellij.psi.tree.ICompositeElementType
 import com.intellij.psi.tree.IErrorCounterReparseableElementType
+import com.intellij.psi.tree.TokenSet
 import org.jetbrains.kotlin.KtNodeTypes.BLOCK_CODE_FRAGMENT
 import org.jetbrains.kotlin.KtNodeTypes.FUNCTION_LITERAL
 import org.jetbrains.kotlin.KtNodeTypes.SCRIPT
@@ -52,35 +53,55 @@ class BlockExpressionElementType : IErrorCounterReparseableElementType("BLOCK", 
                     FUNCTION_LITERAL != node.elementType &&
                     BLOCK_CODE_FRAGMENT != node.elementType
 
+        /**
+         * Check if this text is block but not a lambda, please refer to parsing rules!
+        @see [org.jetbrains.kotlin.parsing.KotlinExpressionParsing.parseFunctionLiteral]
+         */
         fun isReparseableBlock(blockText: CharSequence): Boolean {
+
+            fun advanceWhitespacesCheckIsEndOrArrow(lexer: KotlinLexer): Boolean {
+                lexer.advance()
+                while (lexer.tokenType != null && lexer.tokenType != KtTokens.EOF) {
+                    if (lexer.tokenType == KtTokens.ARROW) return true
+                    if (lexer.tokenType != KtTokens.WHITE_SPACE) return false
+                    lexer.advance()
+                }
+                return true
+            }
+
             val lexer = KotlinLexer()
             lexer.start(blockText)
 
+            // Try to parse a simple name list followed by an ARROW
+            //   {a -> ...}
+            //   {a, b -> ...}
+            //   {(a, b) -> ... }
             if (lexer.tokenType != KtTokens.LBRACE) return false
 
-            lexer.advance()
+            if (advanceWhitespacesCheckIsEndOrArrow(lexer)) return false
 
-            var identifierOnBack = false
+            if (lexer.tokenType != KtTokens.COLON &&
+                lexer.tokenType != KtTokens.IDENTIFIER &&
+                lexer.tokenType != KtTokens.LPAR
+            ) return true
 
-            while (lexer.tokenType != null && lexer.tokenType != KtTokens.EOF) {
+            val searchForRPAR = lexer.tokenType == KtTokens.LPAR
+
+            if (advanceWhitespacesCheckIsEndOrArrow(lexer)) return false
+
+            val preferParamsToExpressions = lexer.tokenType == KtTokens.COMMA || lexer.tokenType == KtTokens.COLON
+
+            while (true) {
+
                 if (lexer.tokenType == KtTokens.LBRACE) return true
-                if (lexer.tokenType == KtTokens.RBRACE) return true
+                if (lexer.tokenType == KtTokens.RBRACE) return !preferParamsToExpressions
 
-                //Captures a.b...
-                if (identifierOnBack && lexer.tokenType == KtTokens.DOT) return true
-                //Captures a(b,c,d)...
-                if (identifierOnBack && lexer.tokenType == KtTokens.LPAR) return true
+                if (searchForRPAR && lexer.tokenType == KtTokens.RPAR) {
+                    return !advanceWhitespacesCheckIsEndOrArrow(lexer)
+                }
 
-                //Captures lambda
-                if (lexer.tokenType == KtTokens.ARROW) return false
-                if (lexer.tokenType == KtTokens.COMMA) return false
-
-                if (lexer.tokenType != KtTokens.WHITE_SPACE)
-                    identifierOnBack = lexer.tokenType == KtTokens.IDENTIFIER
-
-                lexer.advance()
+                if (advanceWhitespacesCheckIsEndOrArrow(lexer)) return false
             }
-            return false
         }
     }
 }
