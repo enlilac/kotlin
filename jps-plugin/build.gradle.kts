@@ -13,6 +13,7 @@ dependencies {
     compile(project(":daemon-common"))
     compile(project(":daemon-common-new"))
     compile(projectRuntimeJar(":kotlin-daemon-client"))
+    compile(projectRuntimeJar(":kotlin-daemon"))
     compile(project(":compiler:frontend.java"))
     compile(project(":js:js.frontend"))
     compile(projectRuntimeJar(":kotlin-preloader"))
