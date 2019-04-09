@@ -9,9 +9,15 @@ import com.intellij.execution.Location
 import com.intellij.execution.PsiLocation
 import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.openapi.module.Module
+import com.intellij.openapi.projectRoots.JdkUtil
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.ModuleRootModificationUtil
+import com.intellij.openapi.roots.OrderRootType
+import com.intellij.openapi.roots.impl.libraries.ProjectLibraryTable
+import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
@@ -131,6 +137,47 @@ class RunConfigurationTest: KotlinCodeInsightTestCase() {
 
         Assert.assertTrue(javaParameters.classPath.rootDirs.contains(dependencyModuleSrcDir))
         Assert.assertTrue(javaParameters.classPath.rootDirs.contains(moduleWithDependencySrcDir))
+    }
+
+    fun testCommandLineShortener() {
+        val max_commandline_length_windows = 8191
+        val max_filename_length_windows = 248
+
+        val myModule = configureModule(moduleDirPath("module"), getTestProject().baseDir).module
+        ConfigLibraryUtil.configureKotlinRuntimeAndSdk(module, addJdk(testRootDisposable, ::mockJdk9))
+
+        runWriteAction {
+            val modifiableModel = ProjectLibraryTable.getInstance(project).modifiableModel
+            val library = try {
+                modifiableModel.createLibrary("very_long_path", null)
+            } finally {
+                modifiableModel.commit()
+            }
+            with(library.modifiableModel) {
+                for (i in 1..max_commandline_length_windows / max_filename_length_windows) {
+                    val tmpFile = VirtualFileManager.constructUrl(
+                        LocalFileSystem.getInstance().protocol,
+                        FileUtil.createTempFile("file$i", "a".repeat(max_filename_length_windows - 10)).path
+                    )
+                    addRoot(tmpFile, OrderRootType.CLASSES)
+                }
+                commit()
+            }
+            ModuleRootModificationUtil.addDependency(myModule, library)
+        }
+
+        val kotlinRunConfiguration = createConfigurationFromMain("some.test.main")
+        kotlinRunConfiguration.setModule(myModule)
+
+        val dynamicClasspathProperty = System.getProperty("idea.dynamic.classpath", "false")
+        try {
+            System.setProperty("idea.dynamic.classpath", "true")
+            val javaParameters = getJavaRunParameters(kotlinRunConfiguration)
+            val commandLine = JdkUtil.setupJVMCommandLine(javaParameters).commandLineString
+            Assert.assertTrue(commandLine.length < max_commandline_length_windows)
+        } finally {
+            System.setProperty("idea.dynamic.classpath", dynamicClasspathProperty)
+        }
     }
 
     fun testClassesAndObjects() {

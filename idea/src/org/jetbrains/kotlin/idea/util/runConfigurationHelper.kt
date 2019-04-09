@@ -29,6 +29,7 @@ class JavaParametersBuilder(private val project: Project) {
             if (jdk == null && setDefaultSdk) {
                 this.jdk = SimpleJavaSdkType().createJdk("tmp", SystemProperties.getJavaHome())
             }
+            this.setShortenCommandLine(null, project)
         }
     }
 
