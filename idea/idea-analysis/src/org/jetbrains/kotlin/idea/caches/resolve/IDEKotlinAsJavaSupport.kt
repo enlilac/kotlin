@@ -277,7 +277,7 @@ class IDEKotlinAsJavaSupport(private val project: Project) : KotlinAsJavaSupport
     }
 
     private fun getClassRelativeName(decompiledClassOrObject: KtClassOrObject): FqName {
-        val name = decompiledClassOrObject.nameAsName!!
+        val name = decompiledClassOrObject.nameAsName ?: error("Decompiled class without name")
         val parent = PsiTreeUtil.getParentOfType(
             decompiledClassOrObject,
             KtClassOrObject::class.java,
