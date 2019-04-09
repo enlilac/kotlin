@@ -7,9 +7,7 @@ package org.jetbrains.kotlin.gradle.plugin.mpp
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.FileCollection
-import org.gradle.api.tasks.Internal
-import org.gradle.api.tasks.OutputDirectory
-import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.*
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.sources.KotlinDependencyScope.API_SCOPE
 import org.jetbrains.kotlin.gradle.plugin.sources.KotlinDependencyScope.IMPLEMENTATION_SCOPE
@@ -17,6 +15,7 @@ import org.jetbrains.kotlin.gradle.targets.metadata.ALL_COMPILE_METADATA_CONFIGU
 import java.io.File
 import javax.inject.Inject
 
+@CacheableTask
 open class TransformKotlinGranularMetadata
 @Inject constructor(
     @get:Internal
@@ -25,6 +24,10 @@ open class TransformKotlinGranularMetadata
 
     @get:OutputDirectory
     val outputsDir: File = project.buildDir.resolve("kotlinSourceSetMetadata/${kotlinSourceSet.name}")
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    internal val allSourceSetsMetadataConfiguration = project.configurations.getByName(ALL_COMPILE_METADATA_CONFIGURATION_NAME)
 
     private val transformation =
         GranularMetadataTransformation(

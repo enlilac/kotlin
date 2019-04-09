@@ -27,8 +27,6 @@ import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.sources.DefaultLanguageSettingsBuilder
-import org.jetbrains.kotlin.gradle.plugin.sources.KotlinDependencyScope
-import org.jetbrains.kotlin.gradle.plugin.sources.sourceSetDependencyConfigurationByScope
 import org.jetbrains.kotlin.gradle.scripting.internal.ScriptingGradleSubplugin
 import org.jetbrains.kotlin.gradle.targets.metadata.isKotlinGranularMetadataEnabled
 import org.jetbrains.kotlin.gradle.utils.SingleWarningPerBuild
@@ -101,12 +99,12 @@ class KotlinMultiplatformPlugin(
     private fun setupCompilerPluginOptions(project: Project) {
         // common source sets use the compiler options from the metadata compilation:
         val metadataCompilation =
-            project.multiplatformExtension.targets
-                .getByName(METADATA_TARGET_NAME)
-                .compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME)
+            project.multiplatformExtension.metadata().compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME)
 
         val primaryCompilationsBySourceSet by lazy { // don't evaluate eagerly: Android targets are not created at this point
-            val allCompilationsForSourceSets = CompilationSourceSetUtil.compilationsBySourceSets(project)
+            val allCompilationsForSourceSets = CompilationSourceSetUtil.compilationsBySourceSets(project).mapValues { (_, compilations) ->
+                compilations.filter { it.target.platformType != KotlinPlatformType.common }
+            }
 
             allCompilationsForSourceSets.mapValues { (_, compilations) -> // choose one primary compilation
                 when (compilations.size) {

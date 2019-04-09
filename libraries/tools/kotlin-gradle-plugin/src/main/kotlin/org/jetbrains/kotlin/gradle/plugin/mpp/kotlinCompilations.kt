@@ -70,13 +70,13 @@ abstract class AbstractKotlinCompilation<T : KotlinCommonOptions>(
             Callable { target.project.buildDir.resolve("processedResources/${target.targetName}/$name") })
     }
 
-    open fun addSourcesToCompileTask(sourceSet: KotlinSourceSet, addAsCommonSources: Boolean) {
+    open fun addSourcesToCompileTask(sourceSet: KotlinSourceSet, addAsCommonSources: Lazy<Boolean>) {
         fun AbstractKotlinCompile<*>.configureAction() {
             source(sourceSet.kotlin)
             sourceFilesExtensions(sourceSet.customSourceFilesExtensions)
-            if (addAsCommonSources) {
-                commonSourceSet += sourceSet.kotlin
-            }
+            commonSourceSet += project.files(Callable {
+                if (addAsCommonSources.value) sourceSet.kotlin.sourceDirectories else emptyList<Any>()
+            })
         }
 
         // Note! Invocation of withType-all results in preliminary task instantiation.
@@ -100,10 +100,12 @@ abstract class AbstractKotlinCompilation<T : KotlinCommonOptions>(
         with(target.project) {
             //TODO possibly issue with forced instantiation
             sourceSets.forEach { sourceSet ->
-                val isCommonSource =
-                    CompilationSourceSetUtil.sourceSetsInMultipleCompilations(project)?.contains(sourceSet.name) ?: false
-
-                addSourcesToCompileTask(sourceSet, addAsCommonSources = isCommonSource)
+                addSourcesToCompileTask(
+                    sourceSet,
+                    addAsCommonSources = lazy {
+                        CompilationSourceSetUtil.sourceSetsInMultipleCompilations(project).contains(sourceSet.name)
+                    }
+                )
 
                 // Use `forced = false` since `api`, `implementation`, and `compileOnly` may be missing in some cases like
                 // old Java & Android projects:
@@ -220,6 +222,8 @@ internal object CompilationSourceSetUtil {
 
     private val compilationsBySourceSetCache = WeakHashMap<Project, Map<String, Set<TargetCompilationName>>>()
 
+    /** Evaluates once per project. Don't access until all source set dependsOn relationships are built and all source sets are added
+     * to the relevant compilations. */
     fun compilationsBySourceSets(project: Project): Map<KotlinSourceSet, Set<KotlinCompilation<*>>> {
         val compilationNamesBySourceSetName = compilationsBySourceSetCache.computeIfAbsent(project) { _ ->
             check(project.state.executed) { "Should only be computed after the project is evaluated" }
