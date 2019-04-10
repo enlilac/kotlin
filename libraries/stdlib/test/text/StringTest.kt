@@ -1500,45 +1500,132 @@ ${"    "}
         assertFailsWith<IllegalArgumentException> { s.toCharArray(3, 1) }
     }
 
+    private fun bytesFrom(vararg ints: Int): ByteArray {
+        return ByteArray(ints.size) { ints[it].toByte() }
+    }
+
     @Test
     fun toByteArray() {
-        fun bytesFrom(vararg ints: Int): ByteArray {
-            return ByteArray(ints.size) { ints[it].toByte() }
-        }
+        // empty string
+        assertArrayNotSameButEquals(bytesFrom(), "".toByteArray())
 
-        assertArrayNotSameButEquals("".toByteArray(), bytesFrom())
+        // 1-byte chars
+        assertArrayNotSameButEquals(bytesFrom(0), "\u0000".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0x2D), "-".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0x7F), "\u007F".toByteArray())
 
-        assertArrayNotSameButEquals("\u0000".toByteArray(), bytesFrom(0))
-        assertArrayNotSameButEquals("-".toByteArray(), bytesFrom(0x2D))
-        assertArrayNotSameButEquals("\u007F".toByteArray(), bytesFrom(0x7F))
+        // 2-byte chars
+        assertArrayNotSameButEquals(bytesFrom(0xC2, 0x80), "\u0080".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0xC2, 0xBF), "¿".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0xDF, 0xBF), "\u07FF".toByteArray())
 
-        assertArrayNotSameButEquals("\u0080".toByteArray(), bytesFrom(0xC2, 0x80))
-        assertArrayNotSameButEquals("¿".toByteArray(), bytesFrom(0xC2, 0xBF))
-        assertArrayNotSameButEquals("\u07FF".toByteArray(), bytesFrom(0xDF, 0xBF))
+        // 3-byte chars
+        assertArrayNotSameButEquals(bytesFrom(0xE0, 0xA0, 0x80), "\u0800".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0xE6, 0x96, 0xA4), "斤".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0xED, 0x9F, 0xBF), "\uD7FF".toByteArray())
 
-        assertArrayNotSameButEquals("\u0800".toByteArray(), bytesFrom(0xE0, 0xA0, 0x80))
-        assertArrayNotSameButEquals("斤".toByteArray(), bytesFrom(0xE6, 0x96, 0xA4))
-        assertArrayNotSameButEquals("\uD7FF".toByteArray(), bytesFrom(0xED, 0x9F, 0xBF))
+        // surrogate chars
+        assertArrayNotSameButEquals(bytesFrom(0x3F), "\uD800".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0x3F), "\uDB6A".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0x3F), "\uDFFF".toByteArray())
 
-        assertArrayNotSameButEquals("\uD800".toByteArray(), bytesFrom(0x3F))
-        assertArrayNotSameButEquals("\uDB6A".toByteArray(), bytesFrom(0x3F))
-        assertArrayNotSameButEquals("\uDFFF".toByteArray(), bytesFrom(0x3F))
+        // 3-byte chars
+        assertArrayNotSameButEquals(bytesFrom(0xEE, 0x80, 0x80), "\uE000".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0xEF, 0x98, 0xBC), "\uF63C".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0xEF, 0xBF, 0xBF), "\uFFFF".toByteArray())
 
-        assertArrayNotSameButEquals("\uE000".toByteArray(), bytesFrom(0xEE, 0x80, 0x80))
-        assertArrayNotSameButEquals("\uF63C".toByteArray(), bytesFrom(0xEF, 0x98, 0xBC))
-        assertArrayNotSameButEquals("\uFFFF".toByteArray(), bytesFrom(0xEF, 0xBF, 0xBF))
-
-        assertArrayNotSameButEquals("\uD800\uDC00".toByteArray(), bytesFrom(0xF0, 0x90, 0x80, 0x80))
-        assertArrayNotSameButEquals("\uDA49\uDDFC".toByteArray(), bytesFrom(0xF2, 0xA2, 0x97, 0xBC))
-        assertArrayNotSameButEquals("\uDBFF\uDFFF".toByteArray(), bytesFrom(0xF4, 0x8F, 0xBF, 0xBF))
+        // 4-byte surrogate pairs
+        assertArrayNotSameButEquals(bytesFrom(0xF0, 0x90, 0x80, 0x80), "\uD800\uDC00".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0xF2, 0xA2, 0x97, 0xBC), "\uDA49\uDDFC".toByteArray())
+        assertArrayNotSameButEquals(bytesFrom(0xF4, 0x8F, 0xBF, 0xBF), "\uDBFF\uDFFF".toByteArray())
 
         assertArrayNotSameButEquals(
-            "\u0000-\u007F\u0080¿\u07FF\u0800斤\uD7FFz\uDFFF\uD800z\uDB6Az\uDB6A".toByteArray(),
             bytesFrom(
                 0, 0x2D, 0x7F, 0xC2, 0x80, 0xC2, 0xBF, 0xDF, 0xBF, 0xE0, 0xA0, 0x80,
                 0xE6, 0x96, 0xA4, 0xED, 0x9F, 0xBF, 0x7A, 0x3F, 0x3F, 0x7A, 0x3F, 0x7A, 0x3F
-            )
+            ),
+            "\u0000-\u007F\u0080¿\u07FF\u0800斤\uD7FFz\uDFFF\uD800z\uDB6Az\uDB6A".toByteArray()
         )
+
+        assertArrayNotSameButEquals(
+            bytesFrom(
+                0xEE, 0x80, 0x80, 0xEF, 0x98, 0xBC, 0xC2, 0xBF, 0xEF, 0xBF, 0xBF, 0xF0, 0x90, 0x80, 0x80,
+                0xF2, 0xA2, 0x97, 0xBC, 0xF4, 0x8F, 0xBF, 0xBF
+            ),
+            "\uE000\uF63C¿\uFFFF\uD800\uDC00\uDA49\uDDFC\uDBFF\uDFFF".toByteArray()
+        )
+    }
+
+    @Test
+    fun toByteArraySlice() {
+        assertFailsWith<IllegalArgumentException> { "".toByteArray(startIndex = 1) }
+        assertFailsWith<IllegalArgumentException> { "123".toByteArray(startIndex = 10) }
+        assertFailsWith<IndexOutOfBoundsException> { "123".toByteArray(startIndex = -1) }
+        assertFailsWith<IndexOutOfBoundsException> { "123".toByteArray(endIndex = 10) }
+        assertFailsWith<IllegalArgumentException> { "123".toByteArray(endIndex = -1) }
+        assertFailsWith<IndexOutOfBoundsException> { "123".toByteArray(startIndex = 5, endIndex = 10) }
+        assertFailsWith<IllegalArgumentException> { "123".toByteArray(startIndex = 5, endIndex = 2) }
+        assertFailsWith<IndexOutOfBoundsException> { "123".toByteArray(startIndex = 1, endIndex = 4) }
+
+        assertArrayNotSameButEquals(bytesFrom(), "abc".toByteArray(endIndex = 0))
+        assertArrayNotSameButEquals(bytesFrom(), "abc".toByteArray(startIndex = 3))
+        assertArrayNotSameButEquals(bytesFrom(0x62, 0x63), "abc".toByteArray(startIndex = 1))
+        assertArrayNotSameButEquals(bytesFrom(0x61, 0x62), "abc".toByteArray(endIndex = 2))
+        assertArrayNotSameButEquals(bytesFrom(0x62), "abc".toByteArray(startIndex = 1, endIndex = 2))
+
+        assertArrayNotSameButEquals(bytesFrom(0x2D), "-".toByteArray(0, 1))
+        assertArrayNotSameButEquals(bytesFrom(0xC2, 0xBF), "¿".toByteArray(0, 1))
+        assertArrayNotSameButEquals(bytesFrom(0xE6, 0x96, 0xA4), "斤".toByteArray(0, 1))
+
+        assertArrayNotSameButEquals(bytesFrom(0x3F), "\uDB6A".toByteArray(0, 1))
+
+        assertArrayNotSameButEquals(bytesFrom(0xEF, 0x98, 0xBC), "\uF63C".toByteArray(0, 1))
+
+        assertArrayNotSameButEquals(bytesFrom(0xF2, 0xA2, 0x97, 0xBC), "\uDA49\uDDFC".toByteArray(0, 2))
+        assertArrayNotSameButEquals(bytesFrom(0x3F), "\uDA49\uDDFC".toByteArray(0, 1))
+        assertArrayNotSameButEquals(bytesFrom(0x3F), "\uDA49\uDDFC".toByteArray(1, 2))
+
+        assertArrayNotSameButEquals(
+            bytesFrom(0xE6, 0x96, 0xA4, 0xED, 0x9F, 0xBF, 0x7A, 0x3F, 0x3F),
+            "\u0000-\u007F\u0080¿\u07FF\u0800斤\uD7FFz\uDFFF\uD800z\uDB6Az\uDB6A".toByteArray(startIndex = 7, endIndex = 12)
+        )
+
+        assertArrayNotSameButEquals(
+            bytesFrom(0xC2, 0xBF, 0xEF, 0xBF, 0xBF, 0xF0, 0x90, 0x80, 0x80, 0xF2, 0xA2, 0x97, 0xBC, 0x3F),
+            "\uE000\uF63C¿\uFFFF\uD800\uDC00\uDA49\uDDFC\uDBFF\uDFFF".toByteArray(startIndex = 2, endIndex = 9)
+        )
+    }
+
+    @Test
+    fun toByteArrayOrThrow() {
+        assertArrayNotSameButEquals(bytesFrom(), "".toByteArray(throwOnInvalidSequence = true))
+
+        assertArrayNotSameButEquals(bytesFrom(0), "\u0000".toByteArray(throwOnInvalidSequence = true))
+        assertArrayNotSameButEquals(bytesFrom(0x2D), "-".toByteArray(throwOnInvalidSequence = true))
+
+        assertArrayNotSameButEquals(bytesFrom(0xC2, 0x80), "\u0080".toByteArray(0, 1, true))
+        assertArrayNotSameButEquals(bytesFrom(0xC2, 0xBF), "¿".toByteArray(throwOnInvalidSequence = true))
+
+        assertArrayNotSameButEquals(bytesFrom(0xE6, 0x96, 0xA4), "斤".toByteArray(throwOnInvalidSequence = true))
+        assertArrayNotSameButEquals(bytesFrom(0xED, 0x9F, 0xBF), "\uD7FF".toByteArray(0, 1, true))
+
+        assertFailsWith<CharacterCodingException> { "\uD800".toByteArray(throwOnInvalidSequence = true) }
+        assertFailsWith<CharacterCodingException> { "\uDB6A".toByteArray(0, 1, true) }
+        assertFailsWith<CharacterCodingException> { "\uDFFF".toByteArray(startIndex = 0, throwOnInvalidSequence = true) }
+
+        assertArrayNotSameButEquals(bytesFrom(0xEE, 0x80, 0x80), "\uE000".toByteArray(endIndex = 1, throwOnInvalidSequence = true))
+
+        assertArrayNotSameButEquals(bytesFrom(0xF0, 0x90, 0x80, 0x80), "\uD800\uDC00".toByteArray(throwOnInvalidSequence = true))
+        assertFailsWith<CharacterCodingException> { "\uDA49\uDDFC".toByteArray(0, 1, true) }
+        assertFailsWith<CharacterCodingException> { "\uDBFF\uDFFF".toByteArray(1, 2, true) }
+
+        assertFailsWith<CharacterCodingException> {
+            "\u0000-\u007F\u0080¿\u07FF\u0800斤\uD7FFz\uDFFF\uD800z\uDB6Az\uDB6A".toByteArray(throwOnInvalidSequence = true)
+        }
+
+        assertFailsWith<CharacterCodingException> {
+            "\uE000\uF63C¿\uFFFF\uD800\uDC00\uDA49\uDDFC\uDBFF\uDFFF".toByteArray(2, 9, true)
+        }
     }
 
     @Test
@@ -1548,22 +1635,136 @@ ${"    "}
             return stringFrom(byteArray)
         }
 
-        assertEquals("zC", stringFromBytes(0x7A, 0x43)) // one-byte chars
+        assertEquals("", stringFromBytes()) // empty
+        assertEquals("\u0000", stringFromBytes(0x0)) // null char
+        assertEquals("zC", stringFromBytes(0x7A, 0x43)) // 1-byte chars
 
         assertEquals("��", stringFromBytes(0x85, 0xAF)) // invalid bytes starting with 1 bit
-        assertEquals("¿", stringFromBytes(0xC2, 0xBF)) // two-byte char
-        assertEquals("�z", stringFromBytes(0xCF, 0x7A)) // two-byte char, second byte starts with 0 bit
-        assertEquals("��", stringFromBytes(0xC1, 0xAA)) // one-byte char written in two bytes
+        assertEquals("¿", stringFromBytes(0xC2, 0xBF)) // 2-byte char
+        assertEquals("�z", stringFromBytes(0xCF, 0x7A)) // 2-byte char, second byte starts with 0 bit
+        assertEquals("��", stringFromBytes(0xC1, 0xAA)) // 1-byte char written in two bytes
 
-        assertEquals("�z", stringFromBytes(0xEF, 0xAF, 0x7A)) // three-byte char, third byte starts with 0 bit
-        assertEquals("���", stringFromBytes(0xE0, 0x9F, 0xAF)) // two-byte char written in two bytes
-        assertEquals("�z", stringFromBytes(0xE0, 0xAF, 0x7A)) // three-byte char, third byte starts with 0 bit
-        assertEquals("\u1FFF", stringFromBytes(0xE1, 0xBF, 0xBF)) // three-byte char
-        assertEquals("�", stringFromBytes(0xED, 0xAF, 0xBF)) // three-byte surrogate char
-        assertEquals("�", stringFromBytes(0xE0, 0xAF)) // three-byte char, third byte out of bounds
+        assertEquals("�z", stringFromBytes(0xEF, 0xAF, 0x7A)) // 3-byte char, third byte starts with 0 bit
+        assertEquals("���", stringFromBytes(0xE0, 0x9F, 0xAF)) // 2-byte char written in two bytes
+        assertEquals("�z", stringFromBytes(0xE0, 0xAF, 0x7A)) // 3-byte char, third byte starts with 0 bit
+        assertEquals("\u1FFF", stringFromBytes(0xE1, 0xBF, 0xBF)) // 3-byte char
 
-        assertEquals("\uD83D\uDFDF", stringFromBytes(0xF0, 0x9F, 0x9F, 0x9F)) // four-byte char
-        assertEquals("����", stringFromBytes(0xF0, 0x8F, 0x9F, 0x9F)) // three-byte char written in four bytes
-        assertEquals("����", stringFromBytes(0xF4, 0x9F, 0x9F, 0x9F)) // four-byte code point larger than 0x10FFFF
+        onJvm8AndAbove {
+            assertEquals("���", stringFromBytes(0xED, 0xAF, 0xBF)) // 3-byte high-surrogate char
+            assertEquals("���", stringFromBytes(0xED, 0xB3, 0x9A)) // 3-byte low-surrogate char
+            assertEquals("������", stringFromBytes(0xED, 0xAF, 0xBF, 0xED, 0xB3, 0x9A)) // surrogate pair chars
+            assertEquals("�z", stringFromBytes(0xEF, 0x7A)) // 3-byte char, second byte starts with 0 bit, third byte out of bounds
+
+            assertEquals("�����", stringFromBytes(0xF9, 0x94, 0x80, 0x80, 0x80)) // 5-byte code point larger than 0x10FFFF
+            assertEquals("������", stringFromBytes(0xFD, 0x94, 0x80, 0x80, 0x80, 0x80)) // 6-byte code point larger than 0x10FFFF
+
+            // Ill-Formed Sequences for Surrogates
+            assertEquals("��������A", stringFromBytes(0xED, 0xA0, 0x80, 0xED, 0xBF, 0xBF, 0xED, 0xAF, 0x41))
+            // Truncated Sequences
+            assertEquals("����A", stringFromBytes(0xE1, 0x80, 0xE2, 0xF0, 0x91, 0x92, 0xF1, 0xBF, 0x41))
+        }
+
+        assertEquals("�", stringFromBytes(0xE0, 0xAF)) // 3-byte char, third byte out of bounds
+
+        assertEquals("\uD83D\uDFDF", stringFromBytes(0xF0, 0x9F, 0x9F, 0x9F)) // 4-byte char
+        assertEquals("����", stringFromBytes(0xF0, 0x8F, 0x9F, 0x9F)) // 3-byte char written in four bytes
+        assertEquals("����", stringFromBytes(0xF4, 0x9F, 0x9F, 0x9F)) // 4-byte code point larger than 0x10FFFF
+        assertEquals("����", stringFromBytes(0xF5, 0x80, 0x80, 0x80)) // 4-byte code point larger than 0x10FFFF
+
+        // Non-Shortest Form Sequences
+        assertEquals("��������A", stringFromBytes(0xC0, 0xAF, 0xE0, 0x80, 0xBF, 0xF0, 0x81, 0x82, 0x41))
+        // Other Ill-Formed Sequences
+        assertEquals("�����A��B", stringFromBytes(0xF4, 0x91, 0x92, 0x93, 0xFF, 0x41, 0x80, 0xBF, 0x42))
+    }
+
+    @Test
+    fun stringFromByteArraySlice() {
+        fun stringFromBytes(vararg elements: Int, startIndex: Int, endIndex: Int): String {
+            val byteArray = ByteArray(elements.size) { elements[it].toByte() }
+            return stringFrom(byteArray, startIndex, endIndex)
+        }
+
+        assertFailsWith<IllegalArgumentException> { stringFromBytes(startIndex = 1, endIndex = 0) }
+        assertFailsWith<IllegalArgumentException> { stringFromBytes(0x61, 0x62, 0x63, startIndex = 10, endIndex = 3) }
+        assertFailsWith<IndexOutOfBoundsException> { stringFromBytes(0x61, 0x62, 0x63, startIndex = -1, endIndex = 3) }
+        assertFailsWith<IndexOutOfBoundsException> { stringFromBytes(0x61, 0x62, 0x63, startIndex = 0, endIndex = 10) }
+        assertFailsWith<IllegalArgumentException> { stringFromBytes(0x61, 0x62, 0x63, startIndex = 0, endIndex = -1) }
+        assertFailsWith<IndexOutOfBoundsException> { stringFromBytes(0x61, 0x62, 0x63, startIndex = 5, endIndex = 10) }
+        assertFailsWith<IllegalArgumentException> { stringFromBytes(0x61, 0x62, 0x63, startIndex = 5, endIndex = 2) }
+        assertFailsWith<IndexOutOfBoundsException> { stringFromBytes(0x61, 0x62, 0x63, startIndex = 1, endIndex = 4) }
+
+        assertEquals("", stringFromBytes(startIndex = 0, endIndex = 0))
+        assertEquals("", stringFromBytes(0x61, 0x62, 0x63, startIndex = 0, endIndex = 0))
+        assertEquals("", stringFromBytes(0x61, 0x62, 0x63, startIndex = 3, endIndex = 3))
+        assertEquals("abc", stringFromBytes(0x61, 0x62, 0x63, startIndex = 0, endIndex = 3))
+        assertEquals("ab", stringFromBytes(0x61, 0x62, 0x63, startIndex = 0, endIndex = 2))
+        assertEquals("bc", stringFromBytes(0x61, 0x62, 0x63, startIndex = 1, endIndex = 3))
+        assertEquals("b", stringFromBytes(0x61, 0x62, 0x63, startIndex = 1, endIndex = 2))
+
+        assertEquals("¿", stringFromBytes(0xC2, 0xBF, startIndex = 0, endIndex = 2))
+        assertEquals("�", stringFromBytes(0xC2, 0xBF, startIndex = 0, endIndex = 1))
+        assertEquals("�", stringFromBytes(0xC2, 0xBF, startIndex = 1, endIndex = 2))
+
+        assertEquals("�", stringFromBytes(0xEF, 0xAF, 0x7A, startIndex = 0, endIndex = 2))
+        assertEquals("�z", stringFromBytes(0xEF, 0xAF, 0x7A, startIndex = 1, endIndex = 3))
+
+        onJvm8AndAbove {
+            assertEquals("���", stringFromBytes(0xED, 0xAF, 0xBF, startIndex = 0, endIndex = 3))
+            assertEquals("��", stringFromBytes(0xED, 0xB3, 0x9A, startIndex = 0, endIndex = 2))
+            assertEquals("���", stringFromBytes(0xED, 0xAF, 0xBF, 0xED, 0xB3, 0x9A, startIndex = 1, endIndex = 4))
+            assertEquals("�z", stringFromBytes(0xEF, 0x7A, startIndex = 0, endIndex = 1))
+            assertEquals("z", stringFromBytes(0xEF, 0x7A, startIndex = 1, endIndex = 2))
+        }
+
+        assertEquals("\uD83D\uDFDF", stringFromBytes(0xF0, 0x9F, 0x9F, 0x9F, startIndex = 0, endIndex = 4))
+        assertEquals("��", stringFromBytes(0xF0, 0x9F, 0x9F, 0x9F, startIndex = 2, endIndex = 4))
+        assertEquals("��", stringFromBytes(0xF0, 0x9F, 0x9F, 0x9F, startIndex = 1, endIndex = 3))
+    }
+
+    @Test
+    fun kotlinxIOUnicodeTest() {
+        fun String.readHex(): ByteArray = split(" ")
+            .filter { it.isNotBlank() }
+            .map { it.toInt(16).toByte() }
+            .toByteArray()
+
+        val smokeTestData = "\ud83c\udf00"
+        val smokeTestDataCharArray: CharArray = smokeTestData.toList().toCharArray()
+        val smokeTestDataAsBytes = "f0 9f 8c 80".readHex()
+
+        val testData = "file content with unicode " +
+                "\ud83c\udf00 :" +
+                " \u0437\u0434\u043e\u0440\u043e\u0432\u0430\u0442\u044c\u0441\u044f :" +
+                " \uc5ec\ubcf4\uc138\uc694 :" +
+                " \u4f60\u597d :" +
+                " \u00f1\u00e7"
+        val testDataCharArray: CharArray = testData.toList().toCharArray()
+        val testDataAsBytes: ByteArray = ("66 69 6c 65 20 63 6f 6e 74 65 6e 74 20 77 69 74 " +
+                " 68 20 75 6e 69 63 6f 64 65 20 f0 9f 8c 80 20 3a 20 d0 b7 d0 b4 d0 be d1 " +
+                "80 d0 be d0 b2 d0 b0 d1 82 d1 8c d1 81 d1 8f 20 3a 20 ec 97 ac eb b3 b4 ec " +
+                " 84 b8 ec 9a 94 20 3a 20 e4 bd a0 e5 a5 bd 20 3a 20 c3 b1 c3 a7").readHex()
+
+
+        assertArrayNotSameButEquals(smokeTestDataAsBytes, smokeTestData.toByteArray())
+        assertArrayNotSameButEquals(testDataAsBytes, testData.toByteArray())
+
+        assertEquals(smokeTestData, stringFrom(smokeTestDataAsBytes))
+        assertEquals(testData, stringFrom(testDataAsBytes))
+
+        assertEquals(smokeTestData, stringFrom(smokeTestDataCharArray))
+        assertEquals(testData, stringFrom(testDataCharArray))
+
+        assertArrayNotSameButEquals(smokeTestDataCharArray, smokeTestData.toCharArray())
+        assertArrayNotSameButEquals(testDataCharArray, testData.toCharArray())
+
+        assertArrayNotSameButEquals(smokeTestDataAsBytes, stringFrom(smokeTestDataCharArray).toByteArray())
+        assertArrayNotSameButEquals(testDataAsBytes, stringFrom(testDataCharArray).toByteArray())
+
+        assertArrayNotSameButEquals(smokeTestDataCharArray, stringFrom(smokeTestDataAsBytes).toCharArray())
+        assertArrayNotSameButEquals(testDataCharArray, stringFrom(testDataAsBytes).toCharArray())
+
+        assertEquals("\uD858\uDE18\n", stringFrom(byteArrayOf(0xF0.toByte(), 0xA6.toByte(), 0x88.toByte(), 0x98.toByte(), 0x0a)))
+        assertEquals("\u0BF5\n", stringFrom(byteArrayOf(0xe0.toByte(), 0xaf.toByte(), 0xb5.toByte(), 0x0a)))
+        assertEquals("\u041a\n", stringFrom(byteArrayOf(0xd0.toByte(), 0x9a.toByte(), 0x0a)))
     }
 }
